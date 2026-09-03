@@ -1,0 +1,22 @@
+{
+  "/": {
+    "title": "Lense | Visual computer control with WebMCP",
+    "description": "Observe your screen, send an action, and check the result. Lense gives people and WebMCP agents a shared workspace for visual desktop control."
+  },
+  "/webmcp": {
+    "title": "WebMCP tools, prompts, and workflows | Lense",
+    "description": "Explore Lense's registered WebMCP tools, input schemas, example prompts, and action chains. See how people and agents use the same application state."
+  },
+  "/hackathon": {
+    "title": "Lense hackathon overview | Visual control through WebMCP",
+    "description": "A three-minute guide to Lense: the WebMCP workflow, visible control loop, Vue and Rust architecture, open-source setup, and narrated demo plan."
+  },
+  "/osrs": {
+    "title": "OSRS field guide, map, and prompts | Lense",
+    "description": "Browse Lense's OSRS reference map, visual dictionary, skill guides, and task prompts. Save visual examples locally and look up entries through WebMCP."
+  },
+  "/input-lab": {
+    "title": "Keyboard and pointer input lab | Lense",
+    "description": "Test typing, keyboard shortcuts, clicks, and dragging in Lense's disposable input lab before sending actions to another desktop window."
+  }
+}

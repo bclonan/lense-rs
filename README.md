@@ -4,6 +4,10 @@ A Vue control center and portable Windows bridge. The website observes screensho
 
 Production site: [lense-visual-control.netlify.app](https://lense-visual-control.netlify.app).
 
+[Explore the WebMCP tools](https://lense-visual-control.netlify.app/webmcp) or read the [hackathon overview](https://lense-visual-control.netlify.app/hackathon). The [public source repository](https://github.com/bclonan/lense-rs) contains the app and bridge source. Public video: `[YOUTUBE_URL]`, not recorded or published yet. The exact [2:50 recording script](docs/demo-video-script.md) is ready.
+
+![Lense preview with its forest-green control-loop branding](public/og-image.png)
+
 The [OSRS field guide](https://lense-visual-control.netlify.app/osrs) has a regional map, searchable visual cues, reusable prompts, and starter skill notes. Add cropped screenshot examples from your own game client. Agents can request one reference at a time through the read-only `osrs_reference` tool. See [the field-guide documentation](docs/osrs-field-guide.md).
 
 The Windows download is paused after Norton quarantined version 1.0.1 as IDP.Generic. There is no approved replacement yet. Keep quarantined copies in quarantine. The browser lab remains available. See the [download status](https://lense-visual-control.netlify.app/bridge-download-status.html) and [review record](docs/antivirus-review.md).
@@ -37,6 +41,8 @@ For fewer tool round trips, send `desktop_action` with `observeAfter: true`. It 
 
 ## Local development
 
+Use Node.js 22.12 or newer and pnpm 10.15.1. The browser lab needs no environment variables, bridge, account, or API key. Rust and Visual Studio C++ build tools are needed only for the Windows bridge.
+
 ```powershell
 pnpm install --frozen-lockfile
 pnpm dev
@@ -52,6 +58,18 @@ cargo run -- --dev
 Open the local URL, select Windows desktop, click Detect bridge, then Pair desktop. Approve the native Windows prompt and choose a target. Pairing lasts until disconnection, local emergency stop, or bridge exit.
 
 The browser may also ask for local network permission. The browser permission allows a connection. The separate Windows confirmation grants desktop access.
+
+## WebMCP and documentation
+
+The main app registers seven imperative tools through `document.modelContext.registerTool` when available, with the existing `navigator.modelContext` compatibility check. Browser support is experimental. Use a browser and agent with WebMCP enabled and consult [Chrome's WebMCP documentation](https://developer.chrome.com/docs/ai/webmcp) for current setup. The app detects support; the `/webmcp` inspector reports native registration, local fallback, or a registration error.
+
+Without native WebMCP, the same handlers remain available to developers through `window.lense.tools` and `window.lense.call(name, arguments)`. This fallback does not connect an AI agent. The lab and manual controls still work.
+
+`src/services/webmcp/tools.ts` is the canonical factory. `register.ts` registers its definitions once at the application shell. The `/webmcp` catalog reads those registered definitions, so names, descriptions, and schemas stay in sync. Its read-only runner validates arguments without dynamic code evaluation. Task-changing and input examples open a preview. Native pairing still needs the visible human Pair button and Windows approval.
+
+The `/webmcp` and `/hackathon` pages use the existing app navigation and Pinia stores. Moving between them and Control keeps the same registry and current task. The standalone `/osrs` guide retains its single reference tool; `/lab` and `/input-lab` remain separate test applications.
+
+Set the live site, public repository, and video URL once in `src/site/site-config.json`. `[LIVE_URL]`, `[REPOSITORY_URL]`, and `[YOUTUBE_URL]` are explicit missing values, never completed checklist items. The current live and repository URLs are verified. Replace `videoUrl` with a public HTTPS YouTube URL after recording; the overview then renders a 16:9 player. No API key is needed for the embed.
 
 ## Build the portable Windows executable
 
@@ -102,16 +120,31 @@ The external agent waits for a screen-change event, a periodic check, or a manua
 ## Verify
 
 ```powershell
-pnpm test
-pnpm build
 pnpm exec playwright install chromium
+pnpm test
+pnpm test:release
+pnpm test:assets
+pnpm build
 pnpm test:e2e
-cd bridge
-cargo test
-cargo build --release
 ```
 
-Automated tests use mock desktop input. They do not move the developer's real mouse. The browser recovery test runs a shortened task and verifies depletion, recovery, completion, persistence, and export.
+`pnpm verify` runs all five checks in order. The build includes TypeScript checking. There is no separate lint command. The browser recovery test verifies depletion, recovery, completion, persistence, and export. Documentation tests compare every runtime tool with its card, validate examples and workflows against JSON Schema, check video states, and preserve a running task across navigation. Desktop-input tests use mocks and do not move the developer's real mouse.
+
+Native checks are separate: run `cargo test` from `bridge`. An executable build remains subject to the release restrictions above. Frontend tests do not establish that Windows input works on a real machine.
+
+## Deploy the existing site
+
+`netlify.toml` builds with `pnpm build` and publishes `dist`. It keeps the existing SPA fallback. The build also writes route-specific metadata for `/webmcp` and `/hackathon`, the public license, and the recording script. Windows downloads remain excluded while distribution is paused.
+
+```powershell
+pnpm verify
+npx netlify-cli status
+# On a fresh checkout only, link the existing site:
+npx netlify-cli link --id 821ec388-dde0-4043-9b28-ce1e41a72da0
+npx netlify-cli deploy --prod --dir dist --no-build
+```
+
+Use `npx netlify-cli login` if the status check reports no authentication. Keep tokens out of source control. Check the deployed `/`, `/webmcp`, and `/hackathon` routes and downloads after publishing. Record and upload the demo video separately; this build cannot publish a video for you.
 
 ## Project map
 
@@ -123,6 +156,8 @@ Automated tests use mock desktop input. They do not move the developer's real mo
 | `src/services/tasks` | Cancellable task state machine and limits |
 | `src/services/evaluator` | Pixel comparison and provider-independent evaluation |
 | `src/services/webmcp` | Six desktop tools and read-only OSRS reference lookup |
+| `src/pages` | WebMCP explorer, prompt chains, hackathon overview, recording plan |
+| `src/site` | Central public URLs and route metadata |
 | `src/osrs` | Regional map, visual dictionary, prompts, skill notes, and local screenshot examples |
 | `src/stores` | Vue state and task history |
 | `src/lab` | Standalone visual application and pixel evaluator |
@@ -130,3 +165,7 @@ Automated tests use mock desktop input. They do not move the developer's real mo
 | `tests/e2e` | Browser and mock-bridge acceptance tests |
 
 See [architecture](docs/architecture.md), [protocol](docs/bridge-protocol.md), [security](docs/security.md), [WebMCP tools](docs/webmcp-tools.md), [task engine](docs/task-engine.md), [visual evaluation](docs/visual-evaluation.md), [demo script](docs/demo-script.md), and [troubleshooting](docs/troubleshooting.md).
+
+## Contribute and license
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for tool, schema, service, prompt, and workflow changes. Lense source and original brand assets use the [MIT license](LICENSE). Bundled fonts retain their [SIL Open Font Licenses](public/fonts/dm-sans-OFL.txt). See [third-party notices](docs/third-party-notices.md) for attribution and reference content.

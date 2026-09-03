@@ -1,0 +1,13 @@
+{
+  "name": "Lense",
+  "liveUrl": "https://lense-visual-control.netlify.app",
+  "repositoryUrl": "https://github.com/bclonan/lense-rs",
+  "repositoryPublic": true,
+  "videoUrl": "[YOUTUBE_URL]",
+  "license": "MIT",
+  "placeholders": {
+    "live": "[LIVE_URL]",
+    "video": "[YOUTUBE_URL]",
+    "repository": "[REPOSITORY_URL]"
+  }
+}

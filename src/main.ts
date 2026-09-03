@@ -4,6 +4,8 @@ import App from './App.vue'
 import { useControlStore } from './stores/control'
 import { useBridgeStore } from './stores/bridge'
 import { registerWebMCP } from './services/webmcp/register'
+import { applyPageMetadata } from './site/metadata'
+applyPageMetadata(location.pathname)
 if(location.pathname==='/osrs' || location.pathname==='/osrs/') {
   const [{ default: OsrsReference }, { registerOsrsReference }] = await Promise.all([import('./osrs/OsrsReference.vue'), import('./services/webmcp/osrs')])
   document.title = 'OSRS field guide | Lense'
@@ -25,5 +27,6 @@ if(location.pathname==='/osrs' || location.pathname==='/osrs/') {
   const pinia=createPinia()
   app.use(pinia)
   app.mount('#app')
-  registerWebMCP(useControlStore(pinia),useBridgeStore(pinia))
+  const cleanup=registerWebMCP(useControlStore(pinia),useBridgeStore(pinia))
+  window.addEventListener('pagehide',event=>{if(!event.persisted)cleanup()})
 }

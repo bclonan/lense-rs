@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
+import { computed, defineAsyncComponent, nextTick, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
 import { ArrowDownToLine, ArrowLeft, ArrowRight, ArrowUpRight, BookOpen, Cable, Check, ChevronRight, CircleHelp, Clock3, Command, ExternalLink, Eye, History, Keyboard, Layers, Leaf, Monitor, MousePointer2, Pause, Play, Radio, RefreshCw, ScanLine, ScreenShare, Square, Terminal, Workflow, X } from 'lucide-vue-next'
 import BridgePanel from './components/BridgePanel.vue'
 import EvaluationPanel from './components/EvaluationPanel.vue'
@@ -18,10 +18,42 @@ import { webMcpState } from './services/webmcp/register'
 import { BRIDGE_DOWNLOAD_PAUSED, BRIDGE_DOWNLOAD_STATUS_URL } from './services/bridge/release'
 import type { DesktopAction, Observation, Point, Target, TaskConfig } from './types/protocol'
 import './styles.css'
+import { documentationTools, checkDocumentationSchemas, runDocumentationTool } from './services/webmcp/documentation'
+import { toolInspector, registeredTools } from './services/webmcp/inspector'
+import { applyPageMetadata } from './site/metadata'
+const WebMcpPage = defineAsyncComponent(() => import('./pages/WebMcpPage.vue'))
+const HackathonPage = defineAsyncComponent(() => import('./pages/HackathonPage.vue'))
+
 
 const bridge = useBridgeStore()
 const control = useControlStore()
-const view = ref<'control' | 'demo' | 'history' | 'bridge'>('control')
+type CoreView = 'control' | 'demo' | 'history' | 'bridge'
+type AppView = CoreView | 'webmcp' | 'hackathon'
+const viewFromPath = (): AppView => {
+  const path = location.pathname.replace(/(?:\/index)?\.html$/, '').replace(/\/$/, '')
+  return path === '/webmcp' ? 'webmcp' : path === '/hackathon' ? 'hackathon' : 'control'
+}
+const view = ref<AppView>(viewFromPath())
+const infoPage = computed(() => view.value === 'webmcp' || view.value === 'hackathon')
+const coreView = computed<CoreView>(() => infoPage.value ? 'control' : view.value as CoreView)
+let handlingPopstate = false
+function onPopstate() { handlingPopstate = true; view.value = viewFromPath(); handlingPopstate = false; applyPageMetadata(location.pathname) }
+function onAppLink(event: MouseEvent) {
+  if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
+  const anchor = (event.target as Element).closest<HTMLAnchorElement>('a[href]')
+  if (!anchor || anchor.target || anchor.hasAttribute('download')) return
+  const url = new URL(anchor.href)
+  if (url.origin !== location.origin || url.search || url.hash || !['/','/webmcp','/hackathon'].includes(url.pathname)) return
+  event.preventDefault(); view.value = url.pathname === '/' ? 'control' : url.pathname.slice(1) as AppView
+}
+watch(view, (next,previous) => {
+  const path = next === 'webmcp' || next === 'hackathon' ? `/${next}` : '/'
+  if (!handlingPopstate && (infoPage.value || previous === 'webmcp' || previous === 'hackathon') && location.pathname.replace(/\/$/,'') !== path.replace(/\/$/,'')) history.pushState(null,'',path)
+  applyPageMetadata(path)
+  if (infoPage.value || previous === 'webmcp' || previous === 'hackathon') { window.scrollTo(0,0); void nextTick(() => document.querySelector<HTMLElement>('main')?.focus()) }
+}, {flush:'sync'})
+watch(registeredTools, checkDocumentationSchemas, {immediate:true})
+
 const selectedTarget = computed<Target | null>(() => control.mode === 'desktop' && bridge.session && (control.target.type === 'window' ? bridge.windows : bridge.monitors).some(item => item.id === control.target.id) ? control.target : null)
 const selectingPoint = ref(false)
 const selectionKind = ref<'click' | 'drag-start' | 'drag-end'>('click')
@@ -158,7 +190,7 @@ function restartPreview() {
   clearTimeout(previewTimer); previewController?.abort(); previewBusy.value = false
   const tick = async () => {
     if (generation !== previewGeneration) return
-    if (desktopReady.value && control.mode === 'desktop' && !showingShare.value && previewInterval.value && !pending.value && !selectingPoint.value && control.selectedEvent < 0 && !document.hidden) {
+    if (!infoPage.value && desktopReady.value && control.mode === 'desktop' && !showingShare.value && previewInterval.value && !pending.value && !selectingPoint.value && control.selectedEvent < 0 && !document.hidden) {
       const target = {...control.target}, controller = new AbortController(); previewController = controller; previewBusy.value = true
       const started = performance.now()
       try {
@@ -206,23 +238,24 @@ async function loadReferenceDraft() {
   if (control.mode !== 'desktop' && !control.task && !control.queue.length) await setMode('desktop')
   notice.value = control.mode === 'desktop' ? `Loaded "${entry.title}" as a draft. Review the goal and character notes, then start or add it to the queue.` : `The OSRS draft is ready. Switch to Windows desktop when you are ready to use it. Your current task and queue are preserved.`
 }
-onMounted(async () => { window.addEventListener('keydown', closeHelpOnEscape); await perform(async () => { await control.initialize(); control.configure(bridge.client, provider.value === 'woodcutting' ? new LabProvider() : undefined); await loadReferenceDraft() }); void bridge.detect() })
-onUnmounted(() => { window.removeEventListener('keydown', closeHelpOnEscape); window.clearInterval(timer); stopSharing(); previewGeneration++; clearTimeout(previewTimer); previewController?.abort(); control.dispose() })
+onMounted(async () => { window.addEventListener('keydown', closeHelpOnEscape); window.addEventListener('popstate',onPopstate); applyPageMetadata(location.pathname); await perform(async () => { await control.initialize(); control.configure(bridge.client, provider.value === 'woodcutting' ? new LabProvider() : undefined); await loadReferenceDraft() }); void bridge.detect() })
+onUnmounted(() => { window.removeEventListener('keydown', closeHelpOnEscape); window.removeEventListener('popstate',onPopstate); window.clearInterval(timer); stopSharing(); previewGeneration++; clearTimeout(previewTimer); previewController?.abort(); control.dispose() })
 </script>
 
 <template>
-  <div class="app-shell">
+  <div class="app-shell" @click="onAppLink">
     <aside class="sidebar" aria-label="Main navigation">
       <a class="brand-mark" href="/" aria-label="Lense home"><span /><span /></a>
       <nav><button class="nav-item" :class="{ active: view === 'control' }" title="Control center" aria-label="Control center" @click="view = 'control'"><Layers :size="21" /><span>Control</span></button><button class="nav-item" :class="{ active: view === 'demo' }" title="Demo playbook" aria-label="Demo playbook" @click="view = 'demo'"><Play :size="20" /><span>Demos</span></button><button class="nav-item" :class="{ active: view === 'history' }" title="Event history" aria-label="Event history" @click="view = 'history'"><History :size="21" /><span>History</span></button><button class="nav-item" :class="{ active: view === 'bridge' }" title="Desktop bridge" aria-label="Desktop bridge" @click="view = 'bridge'"><Cable :size="21" /><span>Bridge</span><i v-if="bridge.session" /></button></nav>
-      <div class="sidebar-bottom"><button class="nav-item" title="Help for this page" aria-label="How Lense works" :aria-expanded="helpOpen" aria-controls="page-guide" @click="toggleGuide"><CircleHelp :size="21" /><span>Guide</span></button><div class="sidebar-version">L / 01</div></div>
+      <div class="sidebar-bottom"><button v-if="!infoPage" class="nav-item" title="Help for this page" aria-label="How Lense works" :aria-expanded="helpOpen" aria-controls="page-guide" @click="toggleGuide"><CircleHelp :size="21" /><span>Guide</span></button><div class="sidebar-version">L / 01</div></div>
     </aside>
     <div class="workspace">
-      <header class="topbar"><div class="wordmark">lense<span>VISUAL COMPUTER CONTROL</span></div><div class="topbar-right"><span class="local-note webmcp-status"><Command :size="13" />{{ webMcpState === 'native' ? 'WebMCP · 7 tools live' : webMcpState === 'local' ? 'WebMCP · local fallback' : 'WebMCP registration failed' }}</span><button class="connection-badge" :class="{ connected: bridge.session }" @click="view = 'bridge'"><span class="signal-dot" />{{ bridge.session ? 'Desktop paired' : bridge.status ? 'Bridge detected' : 'Bridge offline' }}<ChevronRight :size="13" /></button></div></header>
-      <main>
+      <header class="topbar"><div class="wordmark">lense<span>VISUAL COMPUTER CONTROL</span></div><div class="topbar-right"><nav class="resource-nav" aria-label="Project resources"><a href="/webmcp" :aria-current="view === 'webmcp' ? 'page' : undefined">WebMCP</a><a href="/hackathon" :aria-current="view === 'hackathon' ? 'page' : undefined">Hackathon</a></nav><span class="local-note webmcp-status"><Command :size="13" />{{ webMcpState === 'native' ? 'WebMCP · 7 tools live' : webMcpState === 'local' ? 'WebMCP · local fallback' : 'WebMCP registration failed' }}</span><button class="connection-badge" :class="{ connected: bridge.session }" @click="view = 'bridge'"><span class="signal-dot" />{{ bridge.session ? 'Desktop paired' : bridge.status ? 'Bridge detected' : 'Bridge offline' }}<ChevronRight :size="13" /></button></div></header>
+      <main tabindex="-1">
+        <template v-if="!infoPage">
         <div class="page-heading"><div><div class="eyebrow page-eyebrow"><span />{{ view === 'demo' ? 'THE DEMO PLAYBOOK' : view === 'history' ? 'A RECORD YOU CAN REPLAY' : view === 'bridge' ? 'CONNECT YOUR COMPUTER' : 'THE CONTROL CENTER' }}</div><h1>{{ view === 'demo' ? 'Put it to work.' : view === 'history' ? 'Nothing behind the curtain.' : view === 'bridge' ? 'Connect your Windows desktop.' : 'Your desktop. Your direction.' }}</h1><p>{{ view === 'demo' ? BRIDGE_DOWNLOAD_PAUSED ? 'Try the included browser lab. Windows setup is on hold.' : 'Try the included lab, then connect a Windows app.' : view === 'history' ? 'See what Lense observed, what it did, and why it continued.' : view === 'bridge' ? BRIDGE_DOWNLOAD_PAUSED ? 'Windows setup is on hold while the antivirus report is reviewed.' : 'Run the bridge, approve access, and choose a monitor or app window.' : 'Give it a goal. Watch every action. Step in whenever you need.' }}</p></div><div class="page-heading-actions"><div v-if="view === 'control'" class="heading-index"><span>OBSERVE</span><i /><span>ACT</span><i /><span>VERIFY</span></div><button v-else class="button button-quiet back-to-control" @click="view = 'control'"><ArrowLeft :size="15" />Control center</button><button ref="helpButton" class="page-help-toggle" :class="{ active: helpOpen }" aria-label="Help for this page" :aria-expanded="helpOpen" aria-controls="page-guide" title="Setup and help for this page" @click="toggleGuide"><CircleHelp :size="21" /><span>Help</span></button></div></div>
 
-        <PageGuide v-if="helpOpen" :view="view" :mode="control.mode" @close="closeGuide" @bridge="view = 'bridge'" @desktop="openDesktop" @lab="openLab" />
+        <PageGuide v-if="helpOpen" :view="coreView" :mode="control.mode" @close="closeGuide" @bridge="view = 'bridge'" @desktop="openDesktop" @lab="openLab" />
         <a v-if="view === 'control'" class="osrs-reference-banner" href="/osrs" target="_blank" rel="noreferrer"><BookOpen :size="18" /><span><strong>OSRS field guide</strong><span>Map, prompt library, visual dictionary and skill notes</span></span><ArrowUpRight :size="17" /></a>
 
         <div v-if="notice || control.error" class="notice-banner" role="alert"><CircleHelp :size="16" /><span>{{ notice || control.error }}</span><button class="icon-button" aria-label="Dismiss notification" @click="notice = ''; control.error = ''"><X :size="14" /></button></div>
@@ -261,8 +294,11 @@ onUnmounted(() => { window.removeEventListener('keydown', closeHelpOnEscape); wi
         </template>
 
         <div v-else class="connection-page"><BridgePanel :status="bridge.status" :session="bridge.session" :permission="bridge.permission" :error="bridge.error" :connecting="bridge.connecting" :monitors="bridge.monitors" :windows="bridge.windows" :target="selectedTarget" @detect="perform(() => bridge.detect())" @pair="pair" @unpair="disconnect" @target="selectTarget" @refresh="perform(() => bridge.refreshTargets())" /><section class="connection-explainer panel"><span class="eyebrow">THIS COMPUTER ONLY</span><h2>Choose the app.<br />See each action.</h2><div class="architecture-row"><span><Layers :size="21" />This website</span><ArrowRight :size="17" /><span><Cable :size="21" />Local bridge</span><ArrowRight :size="17" /><span><Monitor :size="21" />Windows app</span></div><p v-if="BRIDGE_DOWNLOAD_PAUSED">The Windows download is paused while an antivirus report is reviewed. Keep a quarantined copy in quarantine. <a :href="BRIDGE_DOWNLOAD_STATUS_URL">Read the download status.</a></p><p v-else>Run the approved bridge on the same Windows computer as this browser and keep its window open.</p><p>Allow the browser's local network prompt, then approve pairing in the Windows dialog. Choose an app window to type or scroll, or choose a monitor to view and click across a screen.</p><p>Open the input lab in a separate window for your first test. Select that window and check its preview before sending text or a click. General automation requires a connected WebMCP agent.</p><div class="connection-actions"><a class="button" href="/input-lab" target="_blank" rel="noreferrer">Open input lab<ExternalLink :size="14" /></a><button class="button button-primary" @click="openDesktop">Go to desktop controls<ArrowRight :size="15" /></button></div><p class="connection-stop-note">Stop control revokes access. Ctrl + Alt + Escape is the Windows emergency stop.</p></section></div>
+        </template>
+        <WebMcpPage v-else-if="view === 'webmcp'" :tools="documentationTools" :inspector="toolInspector" :run-safe="runDocumentationTool" />
+        <HackathonPage v-else />
       </main>
-      <footer class="app-footer"><span>LENSE / <span>Visual computer control</span></span><button aria-label="Open page guide from footer" :aria-expanded="helpOpen" aria-controls="page-guide" @click="toggleGuide"><BookOpen :size="12" />Help for this page<ArrowUpRight :size="12" /></button><span class="footer-local"><span class="signal-dot" />History stays in this browser</span></footer>
+      <footer class="app-footer"><span>LENSE / <span>Visual computer control</span></span><button v-if="!infoPage" aria-label="Open page guide from footer" :aria-expanded="helpOpen" aria-controls="page-guide" @click="toggleGuide"><BookOpen :size="12" />Help for this page<ArrowUpRight :size="12" /></button><span class="footer-local"><span class="signal-dot" />History stays in this browser</span></footer>
     </div>
     <div v-if="expanded" class="modal-backdrop" @click.self="expanded = false"><section class="preview-modal" role="dialog" aria-modal="true" aria-label="Expanded screen observation"><button class="modal-close icon-button" aria-label="Close expanded preview" @click="expanded = false"><X :size="22" /></button><ScreenPreview :observation="replayObservation" :annotations="control.selectedEvent < 0 ? control.evaluation?.regions : []" :click-point="control.clickPoint" :mode="control.mode" :replay="control.selectedEvent >= 0" :select-enabled="selectingPoint && desktopReady && !showingShare && control.selectedEvent < 0" :drag-end="dragEnd" :selection-kind="selectionKind" :live-stream="showingShare && control.selectedEvent < 0 ? liveStream : null" :frame-status="control.mode === 'desktop' ? frameStatus : undefined" :capture-busy="previewBusy || pending" @select="selectPoint" @observe="observe" @expand="expanded = false" /></section></div>
   </div>
