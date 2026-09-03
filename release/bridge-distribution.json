@@ -1,0 +1,8 @@
+{
+  "availability": "paused",
+  "reportedVersion": "1.0.1",
+  "downloadPath": "/downloads/LenseBridge-Setup-1.0.2-x64.exe",
+  "statusPage": "/bridge-download-status.html",
+  "notice": "Norton reported IDP.Generic for the Windows bridge. The download is paused while the report is reviewed.",
+  "blockedSha256": ["f568eeec970fbf3280e01bebfc5bc302d3e07f4061467d3040c32a6c5d78df32"]
+}

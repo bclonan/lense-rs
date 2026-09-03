@@ -1,0 +1,11 @@
+node_modules/
+.pnpm-store/
+dist/
+bridge/target/
+.netlify/
+test-results/
+playwright-report/
+.env
+*.log
+public/downloads/*.exe
+artifacts/

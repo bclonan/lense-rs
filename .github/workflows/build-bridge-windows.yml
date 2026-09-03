@@ -1,0 +1,51 @@
+name: Build portable Windows bridge
+
+on:
+  push:
+    paths:
+      - 'bridge/**'
+      - '.cargo/**'
+      - 'scripts/package-bridge.ps1'
+      - 'scripts/test-package-bridge.ps1'
+      - 'release/bridge-distribution.json'
+      - '.github/workflows/build-bridge-windows.yml'
+  pull_request:
+    paths:
+      - 'bridge/**'
+      - '.cargo/**'
+      - 'scripts/package-bridge.ps1'
+      - 'scripts/test-package-bridge.ps1'
+      - 'release/bridge-distribution.json'
+      - '.github/workflows/build-bridge-windows.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    env:
+      LENSE_PRODUCTION_ORIGIN: https://lense-visual-control.netlify.app
+    defaults:
+      run:
+        working-directory: bridge
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: bridge
+      - run: cargo test --locked
+      - run: cargo build --release --locked
+      - name: Verify unsigned and stale-version release gates
+        run: ../scripts/test-package-bridge.ps1
+      - name: Package unsigned candidate for review only
+        run: ../scripts/package-bridge.ps1 -Candidate
+      - uses: actions/upload-artifact@v4
+        with:
+          name: LenseBridge-windows-x64-not-approved
+          path: |
+            artifacts/bridge-candidate/LenseBridge-windows-x64.exe
+            artifacts/bridge-candidate/bridge-manifest.json
+          if-no-files-found: error

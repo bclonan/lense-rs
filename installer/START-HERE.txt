@@ -1,0 +1,22 @@
+Use LenseBridge
+
+1. Open LenseBridge from the Windows Start menu. Keep its console window open.
+2. Open https://lense-visual-control.netlify.app/ in your browser.
+3. Choose Bridge, then Detect bridge and Pair desktop. Review the browser and
+   Windows permission prompts before approving desktop access.
+4. Choose a monitor for screenshots and clicks, or an app window for typing,
+   shortcuts, and scrolling. Check the preview before sending input.
+5. Use Control to type or send individual actions. A connected WebMCP agent
+   handles general automation goals. The browser lab is a separate demo.
+
+Press Ctrl+Alt+Escape to revoke desktop access. Close the bridge console when
+you are finished. LenseBridge does not start when Windows signs in and setup
+does not launch it automatically.
+
+Before an update or uninstall, stop desktop control and close the bridge console.
+Remove LenseBridge in Windows Settings > Apps, or use its Start menu uninstall
+shortcut. Removing the bridge does not erase browser task history.
+
+The installer does not change antivirus settings or grant administrator access.
+If security software quarantines a file, leave it quarantined and report the
+detection at the download status page. Do not add an exclusion to run the bridge.

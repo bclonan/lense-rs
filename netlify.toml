@@ -1,0 +1,27 @@
+[build]
+  command = "pnpm build"
+  publish = "dist"
+
+[[redirects]]
+  from = "/downloads/LenseBridge-windows-x64.exe"
+  to = "/bridge-download-status.html"
+  status = 302
+  force = true
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "no-referrer"
+    X-Frame-Options = "DENY"
+    Content-Security-Policy = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' http://127.0.0.1:17373 ws://127.0.0.1:17373 http://127.0.0.1:17374 ws://127.0.0.1:17374 http://127.0.0.1:17375 ws://127.0.0.1:17375; media-src 'self' blob:; object-src 'none'; frame-ancestors 'none'; base-uri 'self'"
+
+[[headers]]
+  for = "/downloads/*.exe"
+  [headers.values]
+    Cache-Control = "no-store"
