@@ -11,6 +11,10 @@
     "title": "Lense hackathon overview | Visual control through WebMCP",
     "description": "A three-minute guide to Lense: the WebMCP workflow, visible control loop, Vue and Rust architecture, open-source setup, and narrated demo plan."
   },
+  "/research": {
+    "title": "Lense-AOT | Asynchronous object-time visual agents",
+    "description": "Explore Lense-AOT: an event-driven visual-agent architecture with object-local clocks, sparse context routing, causal world models, compact memory, guarded rules, and AR projections."
+  },
   "/osrs": {
     "title": "OSRS field guide, map, and prompts | Lense",
     "description": "Browse Lense's OSRS reference map, visual dictionary, skill guides, and task prompts. Save visual examples locally and look up entries through WebMCP."
