@@ -5,13 +5,8 @@ import { useControlStore } from './stores/control'
 import { useBridgeStore } from './stores/bridge'
 import { registerWebMCP } from './services/webmcp/register'
 import { applyPageMetadata } from './site/metadata'
-
 applyPageMetadata(location.pathname)
-
-if (location.pathname === '/research' || location.pathname === '/research/') {
-  const { default: AotPage } = await import('./pages/AotPage.vue')
-  createApp(AotPage).mount('#app')
-} else if(location.pathname==='/osrs' || location.pathname==='/osrs/') {
+if(location.pathname==='/osrs' || location.pathname==='/osrs/') {
   const [{ default: OsrsReference }, { registerOsrsReference }] = await Promise.all([import('./osrs/OsrsReference.vue'), import('./services/webmcp/osrs')])
   document.title = 'OSRS field guide | Lense'
   createApp(OsrsReference).mount('#app')
@@ -32,18 +27,6 @@ if (location.pathname === '/research' || location.pathname === '/research/') {
   const pinia=createPinia()
   app.use(pinia)
   app.mount('#app')
-
-  const resourceNav = document.querySelector<HTMLElement>('.resource-nav')
-  if (resourceNav && !resourceNav.querySelector('[data-research-link]')) {
-    const researchLink = document.createElement('a')
-    researchLink.href = '/research'
-    researchLink.textContent = 'Research'
-    researchLink.dataset.researchLink = ''
-    researchLink.setAttribute('aria-label', 'Lense-AOT research direction')
-    const hackathonLink = resourceNav.querySelector<HTMLAnchorElement>('a[href="/hackathon"]')
-    resourceNav.insertBefore(researchLink, hackathonLink)
-  }
-
   const cleanup=registerWebMCP(useControlStore(pinia),useBridgeStore(pinia))
   window.addEventListener('pagehide',event=>{if(!event.persisted)cleanup()})
 }
